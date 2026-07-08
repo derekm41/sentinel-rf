@@ -7,6 +7,9 @@ from app.services.market_data import get_crypto_candles
 from app.services.indicators import add_indicators
 from app.services.strategy_rules import evaluate_strategy
 from app.services.analyst import generate_trade_reason
+from app.services.strategy_selector import select_best_strategies
+from app.services.market_data import get_historical_data
+
 app = FastAPI(title="Sentinel Crypto Advisor")
 
 app.add_middleware(
@@ -47,8 +50,31 @@ def price(symbol: str):
 
 @app.get("/candles/{symbol}")
 def candles(symbol: str):
-    df = get_crypto_candles(symbol.upper())
-    return df.tail(5).to_dict(orient="records")
+    df = get_crypto_candles(
+        symbol.upper(),
+        interval="1h",
+        period="30d"
+    )
+
+    df = add_indicators(df)
+
+    return df.tail(100).to_dict(orient="records")
+
+    # df = df.rename(columns={"datetime": "index"})
+
+    # return df.tail(100)[
+    #     [
+    #         "index",
+    #         "open",
+    #         "high",
+    #         "low",
+    #         "close",
+    #         "volumne",
+    #         "ema_20",
+    #         "ema_50",
+    #         "ema_200",
+    #     ]
+    # ].to_dict(orient="records")
 
 @app.get("/indicators/{symbol}")
 def indicators(symbol: str):
@@ -56,3 +82,21 @@ def indicators(symbol: str):
     df = add_indicators(df)
 
     return df.tail(5).to_dict(orient="records")
+
+@app.get("/strategies/{symbol}")
+def get_strategies(symbol: str):
+    df = get_historical_data(symbol)
+    df = add_indicators(df)
+
+    trades = select_best_strategies(df, symbol)
+
+    return {
+        "symbol": symbol,
+        "trade_count": len(trades),
+        "top_trades": trades,
+        "message": (
+            "Only high-confidence setups are shown."
+            if trades
+            else "No valid trade setups found right now."
+        )
+    }

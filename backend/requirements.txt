@@ -23,3 +23,5 @@ requests
 yfinance
 pandas
 ta
+recharts
+lucide-react

@@ -64,10 +64,6 @@ def get_crypto_candles(symbol: str, interval: str = "1h", period: str = "7d"):
     return df
 
 
-
-
-
-
 def get_crypto_price(symbol: str):
     symbol = symbol.upper()
     product_id = f"{symbol}-USD"
@@ -87,3 +83,36 @@ def get_crypto_price(symbol: str):
         "ask": float(data["ask"]),
         "volume": float(data["volume"]),
     }
+
+import yfinance as yf
+
+
+def get_historical_data(symbol: str, period: str = "30d", interval: str = "1h"):
+    ticker = f"{symbol}-USD" if "/" not in symbol and "-" not in symbol else symbol
+
+    df = yf.download(
+        ticker,
+        period=period,
+        interval=interval,
+        auto_adjust=False,
+        progress=False
+    )
+
+    if df.empty:
+        raise ValueError(f"No market data found for {symbol}")
+
+    # Flatten columns if yfinance returns multi-index columns
+    if hasattr(df.columns, "levels"):
+        df.columns = [col[0].lower() for col in df.columns]
+    else:
+        df.columns = [col.lower() for col in df.columns]
+
+    df = df.reset_index()
+
+    # Normalize datetime column name
+    if "datetime" in df.columns:
+        df = df.rename(columns={"datetime": "timestamp"})
+    elif "date" in df.columns:
+        df = df.rename(columns={"date": "timestamp"})
+
+    return df
